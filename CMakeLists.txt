@@ -29,10 +29,10 @@ set(SRC
     ${PROJECT_SOURCE_DIR}/src/evaluator/expression/expression.cpp
     ${PROJECT_SOURCE_DIR}/src/evaluator/statement/statement.cpp
     ${PROJECT_SOURCE_DIR}/src/languge/parser.cpp
-    ${PROJECT_SOURCE_DIR}/FinitStateMachine/finite_state_machine/finite_state_machine.cpp
+    ${PROJECT_SOURCE_DIR}/FiniteStateMachine/finite_state_machine/finite_state_machine.cpp
     )
 
-include_directories(./src ./FinitStateMachine)
+include_directories(./src ./FiniteStateMachine)
 
 set(LIB_NAME inter)
 add_library(${LIB_NAME} SHARED ${SRC})
@@ -40,15 +40,14 @@ target_include_directories(${LIB_NAME} PUBLIC .)
 
 add_executable(interpreter ./main.cpp)
 
-target_link_libraries(main PUBLIC ${LIB_NAME})
+target_link_libraries(interpreter PUBLIC ${LIB_NAME})
 
 add_executable(tests
                 tests/main.cpp 
                 tests/combinators.cpp
                 tests/stress_test.cpp
-                ${PROJECT_SOURCE_DIR}/FinitStateMachine/tests/finite_state_machine.cpp
+                ${PROJECT_SOURCE_DIR}/FiniteStateMachine/tests/finite_state_machine.cpp
 )
-
 
 target_link_libraries(tests ${LIB_NAME})
 
