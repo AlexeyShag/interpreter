@@ -1,0 +1,96 @@
+a := ((0));
+b := 1*(2+2) / 2;
+a := 1+(b+b)+2+2+1+2;
+a := cast_to_str(a);
+a := cast_to_int(a);
+
+c := "abc";
+c := "true";
+c := cast_to_bool(c);
+if c then begin
+    b := 1;
+    b := cast_to_str(b);
+end;
+
+if false then begin
+    a := 1;
+end else begin
+    a := 2;
+end;
+
+b := 1;
+a := 0;
+if a < b or a > b then begin
+    a := cast_to_int(a);
+    b := cast_to_int(b);
+    //write(a + b);
+end else begin
+    //write(a, " ", b, " = ");
+    //write(a + b);
+    a := 0;
+    b := 10;
+end;
+c := false;
+if not c then begin
+    c := "false";
+    c := cast_to_bool(c);
+    c := 1;
+    c := cast_to_bool(c);
+    c := true;
+    c := cast_to_bool(c);
+    c := cast_to_str(c);
+    c := cast_to_str(false);
+    c := cast_to_str("ok");
+    c := get_type(c);
+    c := cast_to_bool(0);
+    c := get_type(c);
+
+    c := cast_to_int(true);
+    c := cast_to_int(false);
+    c := cast_to_int("1234312");
+    c := cast_to_int("-1234312");
+    c := get_type(c);
+end;
+
+c := 1 - (2 + 1) * 3 / 4;
+
+if 2 <= 2 or 2 >= 1 and 1<>2 then begin
+    c := 1;
+end;
+
+s := "a";
+t := "b";
+
+c := s + t;
+c := s < t;
+c := s <= t;
+c := s > t;
+c := s >= t;
+c := s <> t;
+c := s = t;
+
+c := c xor c;
+while a < b or a = b do begin
+    a := a + 1;
+    //write(" ", a, "\n");
+end;
+
+for i := 1 to 10 do begin
+    a := i;
+    b := i * 2;
+    //write(i, " ", i* 2, "\n");
+end;
+//write("===");
+for i downto 0 do begin 
+    a := i;
+    b := i / 2;
+    //write(i, " ", i/2, "\n");
+end;
+
+//write("\n");
+a := true;
+//write(a, " ", b, " ", c, " ", i);
+
+//for i := 0 to 10 do begin
+
+//end;
