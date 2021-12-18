@@ -30,7 +30,7 @@ public:
 
 	template<typename Set = std::vector<size_t>>
 	FiniteStateMachine& SetTerminateStates(Set&& t) {
-		f_ = std::forward<Set>(t);
+		terminated_state_ = std::forward<Set>(t);
 		return *this;
 	}
 
@@ -69,14 +69,14 @@ public:
 	const std::unordered_map<char, std::vector<size_t>>& operator[](size_t i) const;
 
 	void AddString(const std::string& word) {
-		size_t now_state = i_;
+		size_t now_state = initial_state_;
 		for (char symbol: word) {
 			if (delta_[now_state].find(symbol) != delta_[now_state].end()) {
 				now_state = delta_[now_state][symbol][0];
 			} else {
-				AddNewState(q_.size());
-				delta_[now_state][symbol] = {q_.size() - 1};
-				now_state = q_.size() - 1;
+				AddNewState(states_.size());
+				delta_[now_state][symbol] = {states_.size() - 1};
+				now_state = states_.size() - 1;
 			}
 		}
 		AddTerminated(now_state);
@@ -94,7 +94,7 @@ public:
 			size_t next_state = delta_[state].at(word[ans])[0];
 			int res =  MatchPrefix(word, next_state, ans + 1);
 			if (res == ans + 1) {
-				for (char f_state: f_) {
+				for (char f_state: terminated_state_) {
 					if (next_state == f_state) {
 						return res;
 					}
@@ -124,11 +124,11 @@ private:
 
 	bool IsTerminate(size_t state) const;
 
-	std::vector<size_t> q_; // states
+	std::vector<size_t> states_; // states
 	std::vector<char> sigma_; // alphabet
 	std::vector<std::unordered_map<char, std::vector<size_t>>> delta_; // transitions
-	size_t i_; // initial states
-	std::vector<size_t> f_; // terminated states
+	size_t initial_state_; // initial states
+	std::vector<size_t> terminated_state_; // terminated states
 };
 
 

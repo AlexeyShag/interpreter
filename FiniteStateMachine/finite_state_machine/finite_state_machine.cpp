@@ -10,16 +10,16 @@ std::string ParseSymbol(char c) {
 }
 
 FiniteStateMachine& FiniteStateMachine::SetNumberState(size_t n) {
-    q_.resize(n);
+    states_.resize(n);
     delta_.resize(n);
     for (size_t i = 0; i < n; ++i) {
-        q_[i] = i;
+        states_[i] = i;
     }
     return *this;
 }
 
 FiniteStateMachine& FiniteStateMachine::SetInitialState(size_t i) {
-    i_ = i;
+    initial_state_ = i;
     return *this;
 }
 
@@ -37,11 +37,11 @@ size_t FiniteStateMachine::GetNumberTransitions() const {
 }
 
 size_t FiniteStateMachine::GetNumberState() const {
-    return q_.size();
+    return states_.size();
 }
 
 size_t FiniteStateMachine::GetNumberTerminateState() const {
-    return f_.size();
+    return terminated_state_.size();
 }
 	
 FiniteStateMachine& FiniteStateMachine::AddNewState(size_t new_state) {
@@ -49,7 +49,7 @@ FiniteStateMachine& FiniteStateMachine::AddNewState(size_t new_state) {
         throw std::runtime_error("This state is already exists");
     }
     delta_.resize(std::max(delta_.size(), new_state + 1));
-    q_.push_back(new_state);
+    states_.push_back(new_state);
     return *this;
 }
 
@@ -61,15 +61,15 @@ FiniteStateMachine& FiniteStateMachine::AddNewState(size_t new_state, std::unord
 
 
 void FiniteStateMachine::Clear() {
-    i_ = 0;
+    initial_state_ = 0;
     delta_.clear();
-    q_.clear();
-    f_.clear();
+    states_.clear();
+    terminated_state_.clear();
     sigma_.clear();
 }
 
 FiniteStateMachine& FiniteStateMachine::AddTerminated(size_t state) {
-    f_.push_back(state);
+    terminated_state_.push_back(state);
     return *this;
 }
 
@@ -79,21 +79,21 @@ const std::unordered_map<char, std::vector<size_t>>& FiniteStateMachine::operato
 	
 
 bool FiniteStateMachine::CheckingWord(const std::string& s) {
-    return dfs(i_, s, 0);
+    return dfs(initial_state_, s, 0);
 }
 
 size_t FiniteStateMachine::GetInitialState() const {
-    return i_;
+    return initial_state_;
 }
 
 void FiniteStateMachine::DeleteEmptyTransitions() {
     Expand();
     auto eps_closure = BuildEpsClosure();
     
-    size_t new_i = UniqueStates(eps_closure[i_]);
-    std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta (1 << q_.size());
+    size_t new_i = UniqueStates(eps_closure[initial_state_]);
+    std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta (1 << states_.size());
     std::vector<size_t> new_q;
-    size_t f = UniqueStates(f_);
+    size_t f = UniqueStates(terminated_state_);
     std::vector<size_t> new_f;
 
     std::queue<size_t> buffer;
@@ -112,7 +112,7 @@ void FiniteStateMachine::DeleteEmptyTransitions() {
         }
         for (auto symbol: sigma_) {
             size_t new_state = 0;
-            for (size_t state_id = 0; state_id < q_.size(); ++state_id) {
+            for (size_t state_id = 0; state_id < states_.size(); ++state_id) {
                 size_t state = (1 << state_id);
                 if (current_state & state) {
                     for (auto& next_old_state: delta_[state][symbol]) {
@@ -126,10 +126,10 @@ void FiniteStateMachine::DeleteEmptyTransitions() {
             }
         }
     }
-    i_ = new_i;
-    q_ = std::move(new_q);
+    initial_state_ = new_i;
+    states_ = std::move(new_q);
     delta_ = std::move(new_delta);
-    f_ = std::move(new_f);
+    terminated_state_ = std::move(new_f);
 
     Zip();
 }
@@ -137,14 +137,14 @@ void FiniteStateMachine::DeleteEmptyTransitions() {
 void FiniteStateMachine::MakeDeterministic() {
     Expand();
 
-    std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta(1 << q_.size());
+    std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta(1 << states_.size());
     std::vector<size_t> new_q;
-    size_t f = UniqueStates(f_);
+    size_t f = UniqueStates(terminated_state_);
     std::vector<size_t> new_f;
 
     std::queue<size_t> buffer;
     std::unordered_set<size_t> was_in;
-    buffer.push(i_);
+    buffer.push(initial_state_);
     while (!buffer.empty()) {
         auto current_state = buffer.front();
         buffer.pop();
@@ -158,7 +158,7 @@ void FiniteStateMachine::MakeDeterministic() {
         }
         for (auto symbol: sigma_) {
             size_t new_state = 0;
-            for (size_t state_id = 0; state_id < q_.size(); ++state_id) {
+            for (size_t state_id = 0; state_id < states_.size(); ++state_id) {
                 size_t state = (1 << state_id);
                 if (current_state & state) {
                     new_state |= UniqueStates(delta_[state][symbol]);	
@@ -171,17 +171,17 @@ void FiniteStateMachine::MakeDeterministic() {
         }
     }
 
-    q_ = std::move(new_q);
+    states_ = std::move(new_q);
     delta_ = std::move(new_delta);
-    f_ = std::move(new_f);
+    terminated_state_ = std::move(new_f);
 
     Zip();
 }
 
 void FiniteStateMachine::MakeFullDeterministic() {
-    size_t new_state = q_.size();
+    size_t new_state = states_.size();
     bool is_new_state_created = false;
-    for (auto& state: q_) {
+    for (auto& state: states_) {
         for (auto symbol: sigma_) {
             if (delta_[state].find(symbol) == delta_[state].end()) {
                 delta_[state][symbol].push_back(new_state);
@@ -190,28 +190,28 @@ void FiniteStateMachine::MakeFullDeterministic() {
         }
     }
     if (is_new_state_created) {	
-        delta_.resize(q_.size() + 1);
+        delta_.resize(states_.size() + 1);
         for (auto symbol: sigma_) {
             delta_[new_state][symbol].push_back(new_state);
         }
-        q_.push_back(new_state);
+        states_.push_back(new_state);
     }
 }	
 
 void FiniteStateMachine::MakeAddition() {
-    size_t uniqued_t = ExpandAndUniqueStates(f_);
-    f_.clear();
-    for (size_t state_id = 0; state_id < q_.size(); ++state_id) {
+    size_t uniqued_t = ExpandAndUniqueStates(terminated_state_);
+    terminated_state_.clear();
+    for (size_t state_id = 0; state_id < states_.size(); ++state_id) {
         if (!(uniqued_t & (1 << state_id))) {
-            f_.push_back(state_id);
+            terminated_state_.push_back(state_id);
         }
     }
 }
 
 void FiniteStateMachine::MakeMinFullDeterministic() {
     Expand();
-    std::vector<size_t> classes((1 << q_.size()), 1);
-    for (auto& state: f_) {
+    std::vector<size_t> classes((1 << states_.size()), 1);
+    for (auto& state: terminated_state_) {
         classes[state] = 2;
     }
     size_t number_classes = 2;
@@ -219,7 +219,7 @@ void FiniteStateMachine::MakeMinFullDeterministic() {
     while (number_classes != last_number_classes) {
         last_number_classes = number_classes;
         std::map<std::vector<size_t>, std::vector<size_t>> new_classes;
-        for (auto& current_state: q_) {
+        for (auto& current_state: states_) {
             std::vector<size_t> new_class;
             for (char symbol: sigma_) {
                 size_t symbol_class = 0;
@@ -241,11 +241,11 @@ void FiniteStateMachine::MakeMinFullDeterministic() {
             ++number_classes;
         }
     }
-    i_ = classes[i_];
+    initial_state_ = classes[initial_state_];
 
-    q_.resize(number_classes);
-    for (size_t i = 0; i < q_.size(); ++i) {
-        q_[i] = (1 << i);
+    states_.resize(number_classes);
+    for (size_t i = 0; i < states_.size(); ++i) {
+        states_[i] = (1 << i);
     }
 
     std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta(1 << number_classes);
@@ -262,18 +262,18 @@ void FiniteStateMachine::MakeMinFullDeterministic() {
 
     delta_ = std::move(new_delta);
 
-    for(auto& state: f_) {
+    for(auto& state: terminated_state_) {
         state = classes[state];
     }
-    std::sort(f_.begin(), f_.end());
-    f_.erase(std::unique(f_.begin(), f_.end()), f_.end());
+    std::sort(terminated_state_.begin(), terminated_state_.end());
+    terminated_state_.erase(std::unique(terminated_state_.begin(), terminated_state_.end()), terminated_state_.end());
 
     Zip();
 }	
 
 void FiniteStateMachine::print() const {
     std::cerr << "State:\n";
-    for (auto& state: q_) {
+    for (auto& state: states_) {
         std::cerr << state << ' ';
     }
     std::cerr << '\n';
@@ -288,9 +288,9 @@ void FiniteStateMachine::print() const {
         }
     }
     std::cerr << "\nInitial:\n";
-    std::cerr << i_ << '\n';
+    std::cerr << initial_state_ << '\n';
     std::cerr << "\nTerminate:\n";
-    for (auto& state: f_) {
+    for (auto& state: terminated_state_) {
         std::cerr << state << ' ';
     }
     std::cerr << '\n';
@@ -300,18 +300,18 @@ void FiniteStateMachine::print() const {
 }
 
 void FiniteStateMachine::Cat(const FiniteStateMachine& machine) {
-    if (f_.size() != 1) {
+    if (terminated_state_.size() != 1) {
         throw std::runtime_error("for catcatination need machines with 1 tinish state");
     }
 
     MergeAlphabet(machine.sigma_);
 
-    size_t shift = q_.size();
-    delta_.resize(q_.size() + machine.q_.size());
+    size_t shift = states_.size();
+    delta_.resize(states_.size() + machine.states_.size());
 
-    for (const auto& state : machine.q_) {
-        if (state != machine.i_) {
-            q_.push_back(state + shift);	
+    for (const auto& state : machine.states_) {
+        if (state != machine.initial_state_) {
+            states_.push_back(state + shift);	
         }
     }
 
@@ -320,20 +320,20 @@ void FiniteStateMachine::Cat(const FiniteStateMachine& machine) {
             for (const auto& next_state: next_states) {
                 size_t v = state + shift;
                 size_t u = next_state + shift;
-                if (state == machine.i_) {
-                    v = f_[0];
+                if (state == machine.initial_state_) {
+                    v = terminated_state_[0];
                 }
-                if (next_state == machine.i_) {
-                    u = f_[0];
+                if (next_state == machine.initial_state_) {
+                    u = terminated_state_[0];
                 }
                 delta_[v][symbol].push_back(u);
             }
         }
     }
 
-    if (machine.i_ != machine.f_[0]) {
-        f_ = machine.f_;
-        for (auto& state: f_) {
+    if (machine.initial_state_ != machine.terminated_state_[0]) {
+        terminated_state_ = machine.terminated_state_;
+        for (auto& state: terminated_state_) {
             state += shift;
         }
     }
@@ -342,25 +342,25 @@ void FiniteStateMachine::Cat(const FiniteStateMachine& machine) {
 }
 
 void FiniteStateMachine::Sum(const FiniteStateMachine& machine) {
-    if (f_.size() != 1 || machine.f_.size() != 1) {
+    if (terminated_state_.size() != 1 || machine.terminated_state_.size() != 1) {
         throw std::runtime_error("for catcatination need machines with 1 tinish state");
     }
 
-    if (f_[0] == i_) {
+    if (terminated_state_[0] == initial_state_) {
         throw std::runtime_error("can't sum machines, where initial and terminate states is same");
     }
 
-    if (machine.f_[0] == machine.i_) {
+    if (machine.terminated_state_[0] == machine.initial_state_) {
         throw std::runtime_error("can't sum machines, where initial and terminate states is same");
     }
 
     MergeAlphabet(machine.sigma_);
 
-    size_t shift = q_.size();
-    delta_.resize(q_.size() + machine.q_.size());
-    for (const auto& state : machine.q_) {
-        if (machine.i_ != state && machine.f_[0] != state) {
-            q_.push_back(state + shift);	
+    size_t shift = states_.size();
+    delta_.resize(states_.size() + machine.states_.size());
+    for (const auto& state : machine.states_) {
+        if (machine.initial_state_ != state && machine.terminated_state_[0] != state) {
+            states_.push_back(state + shift);	
         }
     }
 
@@ -369,18 +369,18 @@ void FiniteStateMachine::Sum(const FiniteStateMachine& machine) {
             for (const auto& next_state: next_states) {
                 size_t v = state + shift;
                 size_t u = next_state + shift;
-                if (state == machine.i_) {
-                    v = i_;
+                if (state == machine.initial_state_) {
+                    v = initial_state_;
                 }
-                if (state == machine.f_[0]) {
-                    v = f_[0];
+                if (state == machine.terminated_state_[0]) {
+                    v = terminated_state_[0];
                 }
 
-                if (next_state == machine.f_[0]) {
-                    u = f_[0];
+                if (next_state == machine.terminated_state_[0]) {
+                    u = terminated_state_[0];
                 }
-                if (next_state == machine.i_) {
-                    u = i_;
+                if (next_state == machine.initial_state_) {
+                    u = initial_state_;
                 }
 
                 delta_[v][symbol].push_back(u);
@@ -391,12 +391,12 @@ void FiniteStateMachine::Sum(const FiniteStateMachine& machine) {
 }
 
 void FiniteStateMachine::MakeCircle() {
-    if (f_.size() != 1) {
+    if (terminated_state_.size() != 1) {
         throw std::runtime_error("for catcatination need machines with 1 tinish state");
     }
 
-    delta_[f_[0]][eps].push_back(i_);
-    f_[0] = i_;
+    delta_[terminated_state_[0]][eps].push_back(initial_state_);
+    terminated_state_[0] = initial_state_;
 }
 
 void FiniteStateMachine::MergeAlphabet(const std::vector<char>& alphabet) {
@@ -430,7 +430,7 @@ bool FiniteStateMachine::dfs(size_t current_state, const std::string& word, size
 }
 
 bool FiniteStateMachine::IsTerminate(size_t state) const {
-    for (const auto& terminate_state: f_) {
+    for (const auto& terminate_state: terminated_state_) {
         if (terminate_state == state) {
             return true;
         }
@@ -439,7 +439,7 @@ bool FiniteStateMachine::IsTerminate(size_t state) const {
 }
 
 void FiniteStateMachine::Expand() {
-    for (auto& state: q_) {
+    for (auto& state: states_) {
         state = 1 << state;
     }
 
@@ -455,15 +455,15 @@ void FiniteStateMachine::Expand() {
     }	
     delta_ = std::move(new_delta);
 
-    i_ = 1 << i_;
-    for (auto& state: f_) {
+    initial_state_ = 1 << initial_state_;
+    for (auto& state: terminated_state_) {
         state = 1 << state;
     }
 }
 
 std::vector<std::vector<size_t>> FiniteStateMachine::BuildEpsClosure() {
     std::vector<std::vector<size_t>> eps_closure(delta_.size());
-    for (auto& state: q_) {
+    for (auto& state: states_) {
         std::queue<size_t> buffer;
         std::unordered_set<size_t> was_in;
         buffer.push(state);
@@ -500,17 +500,17 @@ size_t FiniteStateMachine::ExpandAndUniqueStates(const std::vector<size_t>& stat
 }
 
 void FiniteStateMachine::Zip() {
-    std::sort(q_.begin(), q_.end());
+    std::sort(states_.begin(), states_.end());
     std::unordered_map<size_t, size_t> dictinory;
-    for (size_t i = 0; i < q_.size(); ++i) {
-        dictinory[q_[i]] = i;
+    for (size_t i = 0; i < states_.size(); ++i) {
+        dictinory[states_[i]] = i;
     }
 
-    for (auto& state: q_) {
+    for (auto& state: states_) {
         state = dictinory[state];
     }
 
-    std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta(q_.size());
+    std::vector<std::unordered_map<char, std::vector<size_t>>> new_delta(states_.size());
     for (size_t state = 0; state < delta_.size(); ++state) {
         for (auto& [symbol, next_states]: delta_[state]) {
             for (auto& next_state: next_states) {
@@ -520,11 +520,11 @@ void FiniteStateMachine::Zip() {
     }	
     delta_ = std::move(new_delta);
 
-    i_ = dictinory[i_];
-    for (auto& state: f_) {
+    initial_state_ = dictinory[initial_state_];
+    for (auto& state: terminated_state_) {
         state = dictinory[state];
     }
-    std::sort(f_.begin(), f_.end());
+    std::sort(terminated_state_.begin(), terminated_state_.end());
 }
 
 
