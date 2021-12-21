@@ -1,0 +1,34 @@
+name: main
+
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+
+jobs:
+  run_tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Add GTest
+        run: |
+          cd ${{ github.workspace }}
+          git clone https://github.com/google/googletest gtest
+          cd gtest
+          git pull 
+          git pull origin main
+          git reset e4ffd4d --hard
+          cd ..
+      - name: test
+        run: |
+          cd ${{ github.workspace }}
+          mkdir build
+          cd build
+          CXX=clang++-10 CC=clang-10 cmake -DCODE_COVERAGE=On ..
+          make tests
+          ./tests
+      - name: coverage
+        run: |
+          cd ${{ github.workspace }}
+          ./coverage.sh
